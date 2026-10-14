@@ -15,6 +15,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.runtime.rememberCoroutineScope
+import com.backlogzero.app.UpdateInfo
+import com.backlogzero.app.checkForUpdate
+import com.backlogzero.app.currentVersion
+import com.backlogzero.app.downloadUpdate
+import com.backlogzero.app.installApk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -90,6 +99,8 @@ fun ProfileScreen() {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
+                UpdateSection()
+
                 OutlinedButton(onClick = vm::logout, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Uitloggen") }
                 TextButton(onClick = { confirmDelete = true }, modifier = Modifier.fillMaxWidth()) {
                     Text("Account en alle gegevens verwijderen", color = MaterialTheme.colorScheme.error)
@@ -109,5 +120,51 @@ fun ProfileScreen() {
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Annuleren") } },
         )
+    }
+}
+
+/** Controleert GitHub op een nieuwere versie, downloadt die en opent het installatiescherm. */
+@Composable
+private fun UpdateSection() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var found by remember { mutableStateOf<UpdateInfo?>(null) }
+    var status by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+
+    Column(
+        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surfaceContainer).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("App-updates", style = MaterialTheme.typography.titleSmall)
+        val info = found
+        Button(
+            enabled = !busy,
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                busy = true
+                scope.launch {
+                    try {
+                        if (info == null) {
+                            status = "Bezig met controleren…"
+                            val result = withContext(Dispatchers.IO) { checkForUpdate(currentVersion(context)) }
+                            found = result
+                            status = if (result == null) "Je hebt al de nieuwste versie (${currentVersion(context)})." else "Versie ${result.version} is beschikbaar."
+                        } else {
+                            val file = withContext(Dispatchers.IO) {
+                                downloadUpdate(context, info) { p -> status = "Downloaden… ${(p * 100).toInt()}%" }
+                            }
+                            status = if (installApk(context, file)) "Installatiescherm geopend."
+                            else "Sta eerst 'onbekende apps installeren' toe en tik daarna opnieuw op de knop."
+                        }
+                    } catch (e: Exception) {
+                        status = "Mislukt: ${e.message ?: e.javaClass.simpleName}"
+                    } finally {
+                        busy = false
+                    }
+                }
+            },
+        ) { Text(if (info == null) "Controleren op updates" else "Download en installeer ${info.version}") }
+        status?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }

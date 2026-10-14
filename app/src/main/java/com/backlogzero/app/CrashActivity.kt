@@ -43,6 +43,49 @@ class CrashActivity : Activity() {
                     .setPrimaryClip(ClipData.newPlainText("crash", text))
             }
         }
+        val status = TextView(this).apply {
+            textSize = 13f
+            setTextColor(Color.LTGRAY)
+            setPadding(pad, pad / 2, pad, 0)
+        }
+        val update = Button(this).apply { this.text = "Controleren op updates" }
+        var found: UpdateInfo? = null
+        update.setOnClickListener {
+            update.isEnabled = false
+            val info = found
+            Thread {
+                try {
+                    if (info == null) {
+                        runOnUiThread { status.text = "Bezig met controleren…" }
+                        val result = checkForUpdate(currentVersion(this))
+                        runOnUiThread {
+                            if (result == null) {
+                                status.text = "Je hebt al de nieuwste versie (${currentVersion(this)})."
+                            } else {
+                                found = result
+                                status.text = "Versie ${result.version} is beschikbaar."
+                                update.text = "Download en installeer ${result.version}"
+                            }
+                            update.isEnabled = true
+                        }
+                    } else {
+                        val file = downloadUpdate(this, info) { p ->
+                            runOnUiThread { status.text = "Downloaden… ${(p * 100).toInt()}%" }
+                        }
+                        runOnUiThread {
+                            status.text = if (installApk(this, file)) "Installatiescherm geopend."
+                            else "Sta eerst 'onbekende apps installeren' toe en tik daarna opnieuw op de knop."
+                            update.isEnabled = true
+                        }
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        status.text = "Mislukt: ${e.message ?: e.javaClass.simpleName}"
+                        update.isEnabled = true
+                    }
+                }
+            }.start()
+        }
         val body = TextView(this).apply {
             this.text = text
             textSize = 10f
@@ -58,6 +101,8 @@ class CrashActivity : Activity() {
             addView(title)
             addView(hint)
             addView(copy)
+            addView(update)
+            addView(status)
             addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         }
         setContentView(root)
