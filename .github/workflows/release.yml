@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths-ignore: ["**.md"]
+  workflow_dispatch: # handmatig starten: gh workflow run Release
 
 permissions:
   contents: write
