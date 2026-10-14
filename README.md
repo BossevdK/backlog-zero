@@ -98,7 +98,7 @@ Elke release moet met **dezelfde sleutel** zijn ondertekend, anders kan Android 
 
 - Werk op een branch (`feature/...`), open een pull request; CI draait tests en bouwt de debug-APK.
 - Test een wijziging door de debug-APK uit de CI-run (artifact) of lokaal te installeren (`adb install -r app-debug.apk`).
-- Release: maak een tag `vX.Y` en een GitHub-release met `BacklogZero.apk` als bijlage. De workflow `.github/workflows/release.yml` doet dit automatisch bij het pushen van een tag, mits de secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` en `KEY_PASSWORD` zijn ingesteld. Zonder die secrets bouwt hij een met de debug-sleutel ondertekende APK, die je niet als echte update moet verspreiden.
+- Release: elke push naar `main` bouwt automatisch een release (`.github/workflows/release.yml`) met versie `1.<runnummer>`, tag `v1.<runnummer>` en `BacklogZero.apk` als bijlage. `versionName` en `versionCode` komen uit CI; je hoeft ze niet meer handmatig te verhogen. Vereist de secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` en `KEY_PASSWORD`; zonder die secrets mislukt de workflow bewust, omdat een debug-ondertekende APK niet als update werkt.
 
 ### iOS
 

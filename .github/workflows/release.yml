@@ -2,7 +2,8 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+    paths-ignore: ["**.md"]
 
 permissions:
   contents: write
@@ -12,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Versienummer bepalen (1.<volgnummer van deze run>)
+        run: |
+          echo "VERSION=1.${{ github.run_number }}" >> "$GITHUB_ENV"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -36,11 +40,14 @@ jobs:
               echo "keyPassword=$KEY_PASSWORD"
             } > keystore.properties
           else
-            echo "::warning::Geen ondertekeningssecrets gevonden; de APK wordt met de debug-sleutel ondertekend."
+            echo "::error::Geen ondertekeningssecrets: een met de debug-sleutel ondertekende APK kan niet over de bestaande installatie heen. Stel KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS en KEY_PASSWORD in."
+            exit 1
           fi
-      - run: gradle testDebugUnitTest assembleRelease --no-daemon
+      - run: gradle testDebugUnitTest assembleRelease --no-daemon -PversionName=$VERSION -PversionCode=${{ github.run_number }}
       - run: cp app/build/outputs/apk/release/app-release.apk BacklogZero.apk
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ env.VERSION }}
+          name: Versie ${{ env.VERSION }}
           files: BacklogZero.apk
           generate_release_notes: true
