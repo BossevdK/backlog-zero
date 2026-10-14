@@ -13,11 +13,11 @@ import com.backlogzero.app.ui.theme.BacklogZeroTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT),
         )
-        super.onCreate(savedInstanceState)
         setContent {
             BacklogZeroTheme {
                 Surface(color = MaterialTheme.colorScheme.background) { AppRoot() }
