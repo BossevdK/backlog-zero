@@ -6,12 +6,13 @@ Een rustige, donkere Android-app om je persoonlijke backlog van **games, films, 
 
 - Lokaal account (registreren, inloggen, uitloggen, account verwijderen); wachtwoorden worden met PBKDF2 gehasht, data is per gebruiker afgeschermd
 - Bibliotheek met zoeken op titel en filters op categorie, status, prioriteit en favorieten
+- Online zoeken bij het toevoegen: kies een resultaat en titel, maker, jaar, platform en omslag worden ingevuld (boeken: Open Library, films/series: TMDB, games: RAWG)
 - Items toevoegen, bewerken en verwijderen, met omslag (uit je galerij), notities, beoordeling (1-5 sterren), jaar, maker en platform
 - Statussen: backlog, bezig, gepauzeerd, afgerond
 - Dashboard, **Pick for me** (gewogen toeval op prioriteit) en statistieken
 - Laad-, fout- en lege toestanden op elk scherm
 
-Nog niet: synchronisatie tussen apparaten, automatisch omslagen ophalen, AI-aanbevelingen, import en betaalde functies. De architectuur is hierop voorbereid (zie hieronder).
+Nog niet: synchronisatie tussen apparaten, AI-aanbevelingen, import en betaalde functies. De architectuur is hierop voorbereid (zie hieronder).
 
 ## Techniek
 
@@ -108,3 +109,13 @@ Deze versie is alleen voor Android. Voor iOS zou een aparte app (of een herbouw 
 
 - Kleine, duidelijke commits; grotere veranderingen op een eigen branch en via een pull request.
 - Geen voorbeeldgegevens of nepfunctionaliteit in de productieversie.
+
+## Online zoeken (API-sleutels)
+
+Boeken zoeken zonder sleutel (Open Library). Films/series (TMDB) en games (RAWG) vragen een gratis sleutel; zonder sleutel staat zoeken voor dat type uit en vul je de velden zelf in.
+
+1. Vraag een sleutel aan op themoviedb.org (Instellingen, API) en rawg.io/apidocs.
+2. Lokaal: zet `TMDB_API_KEY=...` en `RAWG_API_KEY=...` in `~/.gradle/gradle.properties`.
+3. Release via GitHub: voeg dezelfde namen toe als repository-secrets (`gh secret set TMDB_API_KEY`).
+
+De sleutels worden in de app gebouwd en zijn dus uit de APK te halen; gebruik alleen gratis sleutels die je kunt intrekken.

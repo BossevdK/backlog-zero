@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -49,11 +51,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.backlogzero.app.data.CoverStorage
 import com.backlogzero.app.data.LibraryRepository
+import com.backlogzero.app.data.MetadataSearch
+import com.backlogzero.app.data.SearchResult
 import com.backlogzero.app.domain.ItemStatus
 import com.backlogzero.app.domain.MediaItem
 import com.backlogzero.app.domain.MediaType
@@ -65,13 +70,18 @@ import com.backlogzero.app.ui.EmptyState
 import com.backlogzero.app.ui.LoadingBox
 import com.backlogzero.app.ui.RatingStars
 import com.backlogzero.app.ui.appViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import org.json.JSONException
+import java.io.IOException
 import java.util.UUID
 
 class EditViewModel(
     private val library: LibraryRepository,
     private val covers: CoverStorage,
+    private val metadata: MetadataSearch,
     private val itemId: String?,
 ) : ViewModel() {
     var loaded by mutableStateOf(itemId == null)
@@ -80,6 +90,7 @@ class EditViewModel(
         private set
 
     var type by mutableStateOf(MediaType.GAME)
+        private set
     var title by mutableStateOf("")
     var creator by mutableStateOf("")
     var platform by mutableStateOf("")
@@ -94,6 +105,19 @@ class EditViewModel(
         private set
     var pendingCover by mutableStateOf<Uri?>(null)
         private set
+    /** Omslag van een online zoekresultaat; wordt pas bij opslaan opgehaald. */
+    var pendingCoverUrl by mutableStateOf<String?>(null)
+        private set
+
+    var searchQuery by mutableStateOf("")
+        private set
+    var results by mutableStateOf<List<SearchResult>>(emptyList())
+        private set
+    var searching by mutableStateOf(false)
+        private set
+    var searchError by mutableStateOf<String?>(null)
+        private set
+    private var searchJob: Job? = null
 
     var titleError by mutableStateOf<String?>(null)
         private set
@@ -107,7 +131,8 @@ class EditViewModel(
     private var original: MediaItem? = null
 
     val isNew get() = itemId == null
-    val hasCover get() = pendingCover != null || existingCover != null
+    val hasCover get() = pendingCover != null || pendingCoverUrl != null || existingCover != null
+    val searchAvailable get() = metadata.isAvailable(type)
 
     init {
         if (itemId != null) {
@@ -127,12 +152,68 @@ class EditViewModel(
         }
     }
 
+    fun selectType(newType: MediaType) {
+        type = newType
+        runSearch()
+    }
+
+    fun onSearchQuery(query: String) {
+        searchQuery = query
+        runSearch()
+    }
+
+    private fun runSearch() {
+        searchJob?.cancel()
+        searchError = null
+        if (searchQuery.trim().length < 2 || !metadata.isAvailable(type)) {
+            results = emptyList()
+            searching = false
+            return
+        }
+        searchJob = viewModelScope.launch {
+            delay(400) // wachten tot je uitgetypt bent
+            searching = true
+            try {
+                results = metadata.search(type, searchQuery)
+            } catch (e: IOException) {
+                results = emptyList()
+                searchError = "Zoeken lukt nu niet. Controleer je verbinding."
+            } catch (e: JSONException) {
+                results = emptyList()
+                searchError = "Zoeken lukt nu niet."
+            } finally {
+                searching = false
+            }
+        }
+    }
+
+    /** Vult de velden in met het gekozen resultaat; wat je al had ingevuld wordt overschreven. */
+    fun pickResult(result: SearchResult) {
+        searchJob?.cancel()
+        searching = false
+        results = emptyList()
+        searchQuery = ""
+        viewModelScope.launch {
+            val full = metadata.withDetails(type, result)
+            title = full.title
+            creator = full.creator
+            full.year?.let { year = it.toString() }
+            if (full.platform.isNotEmpty()) platform = full.platform
+            pendingCover = null
+            pendingCoverUrl = full.coverUrl
+        }
+    }
+
     fun pickCover(uri: Uri?) {
-        if (uri != null) pendingCover = uri
+        if (uri != null) {
+            pendingCover = uri
+            pendingCoverUrl = null
+        }
     }
 
     fun removeCover() {
         pendingCover = null
+        pendingCoverUrl = null
         existingCover = null
     }
 
@@ -150,7 +231,12 @@ class EditViewModel(
         viewModelScope.launch {
             try {
                 val originalCover = original?.coverFile
-                val newCover = pendingCover?.let { covers.import(it) } ?: existingCover
+                val newCover = when {
+                    pendingCover != null -> covers.import(pendingCover!!)
+                    // Lukt het ophalen van een online omslag niet, dan sla je het item gewoon zonder nieuwe omslag op.
+                    pendingCoverUrl != null -> runCatching { covers.importUrl(pendingCoverUrl!!) }.getOrNull() ?: existingCover
+                    else -> existingCover
+                }
                 val now = System.currentTimeMillis()
                 val base = original ?: MediaItem(id = UUID.randomUUID().toString(), type = type, title = cleanTitle, createdAt = now, updatedAt = now)
                 val item = base.copy(
@@ -180,7 +266,7 @@ class EditViewModel(
 
 @Composable
 fun EditScreen(itemId: String?, onBack: () -> Unit, onSaved: (String) -> Unit) {
-    val vm = appViewModel(key = "edit-${itemId ?: "new"}") { EditViewModel(it.library, it.covers, itemId) }
+    val vm = appViewModel(key = "edit-${itemId ?: "new"}") { EditViewModel(it.library, it.covers, it.metadata, itemId) }
     val context = LocalContext.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { vm.pickCover(it) }
 
@@ -206,7 +292,7 @@ fun EditScreen(itemId: String?, onBack: () -> Unit, onSaved: (String) -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Bottom) {
-                        val model: Any? = vm.pendingCover ?: vm.existingCover?.let { CoverStorage.file(context, it) }
+                        val model: Any? = vm.pendingCover ?: vm.pendingCoverUrl ?: vm.existingCover?.let { CoverStorage.file(context, it) }
                         Cover(
                             vm.title.ifBlank { "Nieuw" }, vm.type, model,
                             Modifier.width(110.dp).height(160.dp).clip(MaterialTheme.shapes.medium),
@@ -224,8 +310,10 @@ fun EditScreen(itemId: String?, onBack: () -> Unit, onSaved: (String) -> Unit) {
                     }
 
                     Field("Categorie") {
-                        ChipRow(MediaType.entries, vm.type, { it.label }, { t -> t?.let { vm.type = it } }, allLabel = null)
+                        ChipRow(MediaType.entries, vm.type, { it.label }, { t -> t?.let { vm.selectType(it) } }, allLabel = null)
                     }
+
+                    if (vm.isNew) SearchSection(vm)
 
                     OutlinedTextField(
                         value = vm.title, onValueChange = { vm.title = it }, label = { Text("Titel") },
@@ -276,6 +364,45 @@ fun EditScreen(itemId: String?, onBack: () -> Unit, onSaved: (String) -> Unit) {
                         if (vm.saving) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                         else Text(if (vm.isNew) "Toevoegen" else "Opslaan")
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchSection(vm: EditViewModel) {
+    OutlinedTextField(
+        value = vm.searchQuery, onValueChange = vm::onSearchQuery,
+        label = { Text("Zoek ${vm.type.label.lowercase()} online") },
+        leadingIcon = { Icon(Icons.Filled.Search, null) },
+        trailingIcon = { if (vm.searching) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) },
+        supportingText = {
+            Text(
+                when {
+                    !vm.searchAvailable -> "Online zoeken voor ${vm.type.plural.lowercase()} staat uit: er is geen API-sleutel ingebouwd. Vul de velden zelf in."
+                    vm.searchError != null -> vm.searchError.orEmpty()
+                    vm.searchQuery.trim().length >= 2 && !vm.searching && vm.results.isEmpty() -> "Niets gevonden."
+                    else -> "Kies een resultaat om titel, maker, jaar en omslag in te vullen."
+                },
+            )
+        },
+        enabled = vm.searchAvailable,
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    vm.results.forEach { r ->
+        Row(
+            Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable { vm.pickResult(r) }.padding(vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Cover(r.title, vm.type, r.coverUrl, Modifier.width(40.dp).height(60.dp).clip(MaterialTheme.shapes.small))
+            Column(Modifier.weight(1f)) {
+                Text(r.title, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                val sub = listOfNotNull(r.creator.ifEmpty { null }, r.year?.toString(), r.platform.ifEmpty { null }).joinToString(" · ")
+                if (sub.isNotEmpty()) {
+                    Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }

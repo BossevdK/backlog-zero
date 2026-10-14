@@ -9,6 +9,8 @@ import com.backlogzero.app.data.AuthRepository
 import com.backlogzero.app.data.CoverStorage
 import com.backlogzero.app.data.LibraryRepository
 import com.backlogzero.app.data.LocalAuthRepository
+import com.backlogzero.app.data.MetadataSearch
+import com.backlogzero.app.data.OnlineMetadataSearch
 import com.backlogzero.app.data.RoomLibraryRepository
 import com.backlogzero.app.data.SessionStore
 import com.backlogzero.app.data.db.AppDatabase
@@ -22,6 +24,7 @@ class AppContainer(context: Context) {
     val covers = CoverStorage(context)
     val auth: AuthRepository = LocalAuthRepository(database.userDao(), SessionStore(context))
     val library: LibraryRepository = RoomLibraryRepository(database.itemDao(), auth, covers)
+    val metadata: MetadataSearch = OnlineMetadataSearch()
     val recommender: Recommender = WeightedRandomRecommender()
 }
 

@@ -11,6 +11,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+      RAWG_API_KEY: ${{ secrets.RAWG_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - name: Versienummer bepalen (1.<volgnummer van deze run>)

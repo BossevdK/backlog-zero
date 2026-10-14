@@ -16,6 +16,13 @@ android {
         targetSdk = 34
         versionCode = (findProperty("versionCode") as String?)?.toInt() ?: 1
         versionName = (findProperty("versionName") as String?) ?: "1.0"
+
+        // Gratis API-sleutels voor online zoeken (TMDB: films/series, RAWG: games). Uit ~/.gradle/gradle.properties
+        // of een omgevingsvariabele (CI-secret). Leeg = zoeken voor dat type staat uit; boeken werken altijd.
+        for (name in listOf("TMDB_API_KEY", "RAWG_API_KEY")) {
+            val key = (findProperty(name) as String?) ?: System.getenv(name) ?: ""
+            buildConfigField("String", name, "\"${key.trim()}\"")
+        }
     }
 
     // Eigen ondertekeningssleutel staat in keystore.properties (niet in git).
@@ -51,7 +58,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
     composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
     lint { abortOnError = false }
@@ -81,6 +91,7 @@ dependencies {
     ksp("androidx.room:room-compiler:2.6.1")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
     testImplementation(kotlin("test"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
 }
