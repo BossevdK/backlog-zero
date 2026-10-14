@@ -1,0 +1,19 @@
+# Build
+.gradle/
+build/
+*.apk
+*.aab
+
+# Lokale configuratie en geheimen: NOOIT in git
+local.properties
+keystore.properties
+*.jks
+*.keystore
+sleutel/
+.env
+.env.*
+
+# IDE
+.idea/
+*.iml
+.DS_Store

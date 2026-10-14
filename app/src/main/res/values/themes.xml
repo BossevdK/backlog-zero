@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bz_background">#FF0D0E12</color>
+    <style name="Theme.BacklogZero" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/bz_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>
