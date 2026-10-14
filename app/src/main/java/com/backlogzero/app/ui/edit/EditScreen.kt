@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 
 package com.backlogzero.app.ui.edit
 
@@ -6,7 +6,10 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +45,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -372,6 +377,15 @@ fun EditScreen(itemId: String?, onBack: () -> Unit, onSaved: (String) -> Unit) {
 
 @Composable
 private fun SearchSection(vm: EditViewModel) {
+    // Het toetsenbord neemt de onderste helft van het scherm in; scroll de zoekresultaten dus in beeld zodra ze er zijn.
+    val requester = remember { BringIntoViewRequester() }
+    LaunchedEffect(vm.results) {
+        if (vm.results.isNotEmpty()) {
+            delay(100) // wachten tot de lijst getekend is
+            requester.bringIntoView()
+        }
+    }
+    Column(Modifier.bringIntoViewRequester(requester), verticalArrangement = Arrangement.spacedBy(4.dp)) {
     OutlinedTextField(
         value = vm.searchQuery, onValueChange = vm::onSearchQuery,
         label = { Text("Zoek ${vm.type.label.lowercase()} online") },
@@ -406,6 +420,7 @@ private fun SearchSection(vm: EditViewModel) {
                 }
             }
         }
+    }
     }
 }
 

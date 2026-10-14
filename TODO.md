@@ -6,14 +6,14 @@ Bijgewerkt op 2026-10-14. Wat hier staat is nog niet gebouwd.
 
 1. **Pick for me per categorie.** De willekeurige keuze (`Recommender` / `PickScreen`) moet ook kunnen voor alleen films, alleen series, alleen games of alleen boeken, naast "alles".
 2. **Homepagina beter sorteren.** Nu nog niet vastgelegd hoe; bedenk eerst een indeling (bijvoorbeeld "Bezig", "Volgende uit je backlog", "Recent toegevoegd" en per categorie). Bestand: `ui/home/HomeScreen.kt`.
-3. **Steam-games inladen.** Importeer je Steam-bibliotheek, zodat je bij het online zoeken van games kunt zien welke je al hebt. Nog uit te zoeken:
-   - Hoort een Steam-game die je bezit automatisch in je backlog, of alleen als markering in de zoekresultaten? (Ik ga uit van: markering bij het zoeken, plus optioneel importeren.)
+3. **Steam-games inladen.** Importeer je Steam-bibliotheek. Games die je al hebt krijgen een markering in de online zoekresultaten en komen **bovenaan** de resultaten te staan (bevestigd door de gebruiker). Ze hoeven niet automatisch in je backlog.
    - Steam Web API vraagt een eigen API-sleutel en je Steam-ID (64-bit); het profiel moet "game details" openbaar hebben.
-   - Past naast `data/MetadataSearch.kt` (RAWG-zoeken); koppel op titel of Steam app-id.
+   - Past naast `data/MetadataSearch.kt` (RAWG-zoeken); koppel op titel (genormaliseerd) of Steam app-id. Sortering van de resultaten gebeurt na het zoeken.
 4. **Series: seizoen en aflevering bijhouden.** Bij het type Serie kun je aangeven bij welk seizoen en welke aflevering je bent. Vraagt nieuwe velden op `MediaItem` en `UserEntity`/item-tabel, dus een Room-migratie (schema's staan in `app/schemas/`, versie in `AppDatabase` verhogen) en aanpassingen in `EditScreen`/`DetailScreen`.
 
 ## Nog open van eerder
 
+- Opgelost in code, nog niet op een toestel gecontroleerd: bij online zoeken zat het toetsenbord voor de resultaten. Ze worden nu in beeld gescrold (`SearchSection` in `EditScreen.kt`).
 - De TMDB-vermelding ("This product uses the TMDB API but is not endorsed or certified by TMDB") staat nog niet in de app (bijvoorbeeld in het profielscherm). Dat is een voorwaarde van TMDB.
 - Online zoeken voor films, series en games is op een toestel nog niet getest (release 1.3 bevat de sleutels).
 - Of de `LocalLifecycleOwner`-crash weg is (opgelost met Compose BOM 2024.09.03) is op een toestel nog niet bevestigd.
