@@ -10,6 +10,8 @@ Bijgewerkt op 2026-10-14. Wat hier staat is nog niet gebouwd.
    - Steam Web API vraagt een eigen API-sleutel en je Steam-ID (64-bit); het profiel moet "game details" openbaar hebben.
    - Past naast `data/MetadataSearch.kt` (RAWG-zoeken); koppel op titel (genormaliseerd) of Steam app-id. Sortering van de resultaten gebeurt na het zoeken.
 4. **Series: seizoen en aflevering bijhouden.** Bij het type Serie kun je aangeven bij welk seizoen en welke aflevering je bent. Vraagt nieuwe velden op `MediaItem` en `UserEntity`/item-tabel, dus een Room-migratie (schema's staan in `app/schemas/`, versie in `AppDatabase` verhogen) en aanpassingen in `EditScreen`/`DetailScreen`.
+5. **Zoekbalk blijft vast bij scrollen.** Bij online zoeken scrolt de zoekbalk nu mee met de rest van het formulier; hij moet bovenaan blijven staan terwijl je door de resultaten scrolt (bijvoorbeeld zoekveld buiten de scrollende kolom in `EditScreen.kt`, of een aparte zoekweergave).
+6. **Meer bronnen voor games en series.** Kijken naar andere plekken om meer games en series vandaan te halen, omdat TMDB en RAWG niet alles vinden. Nog uit te zoeken; denk aan bijvoorbeeld IGDB, TheTVDB of Trakt. Past achter `MetadataSearch` in `data/MetadataSearch.kt`; resultaten van meerdere bronnen samenvoegen en dubbelen weghalen.
 
 ## Nog open van eerder
 
