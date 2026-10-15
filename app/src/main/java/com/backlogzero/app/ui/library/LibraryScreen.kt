@@ -101,6 +101,7 @@ fun LibraryScreen(initialStatus: ItemStatus?, onOpenItem: (String) -> Unit, onAd
             Text("Bibliotheek", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
             FilledIconButton(onClick = onAdd) { Icon(Icons.Filled.Add, contentDescription = "Item toevoegen") }
         }
+        val extraActive = listOf(filter.status, filter.priority).count { it != null } + if (filter.favoritesOnly) 1 else 0
         Spacer(Modifier.height(12.dp))
         OutlinedTextField(
             value = filter.query,
@@ -108,8 +109,15 @@ fun LibraryScreen(initialStatus: ItemStatus?, onOpenItem: (String) -> Unit, onAd
             placeholder = { Text("Zoek op titel") },
             leadingIcon = { Icon(Icons.Filled.Search, null) },
             trailingIcon = {
-                if (filter.query.isNotEmpty()) {
-                    IconButton(onClick = { vm.update { it.copy(query = "") } }) { Icon(Icons.Filled.Clear, "Zoekopdracht wissen") }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (filter.query.isNotEmpty()) {
+                        IconButton(onClick = { vm.update { it.copy(query = "") } }) { Icon(Icons.Filled.Clear, "Zoekopdracht wissen") }
+                    }
+                    IconButton(onClick = { showFilters = true }) {
+                        BadgedBox(badge = { if (extraActive > 0) Badge { Text(extraActive.toString()) } }) {
+                            Icon(Icons.Filled.Tune, contentDescription = "Meer filters")
+                        }
+                    }
                 }
             },
             singleLine = true,
@@ -118,18 +126,10 @@ fun LibraryScreen(initialStatus: ItemStatus?, onOpenItem: (String) -> Unit, onAd
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
         )
         Spacer(Modifier.height(8.dp))
-        val extraActive = listOf(filter.status, filter.priority).count { it != null } + if (filter.favoritesOnly) 1 else 0
-        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            ChipRow(
-                MediaType.entries, filter.type, { it.plural }, { t -> vm.update { it.copy(type = t) } },
-                modifier = Modifier.weight(1f),
-            )
-            IconButton(onClick = { showFilters = true }) {
-                BadgedBox(badge = { if (extraActive > 0) Badge { Text(extraActive.toString()) } }) {
-                    Icon(Icons.Filled.Tune, contentDescription = "Meer filters")
-                }
-            }
-        }
+        ChipRow(
+            MediaType.entries, filter.type, { it.plural }, { t -> vm.update { it.copy(type = t) } },
+            modifier = Modifier.padding(horizontal = 20.dp),
+        )
         Spacer(Modifier.height(8.dp))
 
         LoadGate(state, vm::retry) { data ->
@@ -149,12 +149,12 @@ fun LibraryScreen(initialStatus: ItemStatus?, onOpenItem: (String) -> Unit, onAd
                     onAction = vm::clear,
                 )
                 else -> LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
+                    columns = GridCells.Fixed(3),
                     contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    item(span = { GridItemSpan(2) }) {
+                    item(span = { GridItemSpan(3) }) {
                         Text(
                             "${data.shown.size} ${if (data.shown.size == 1) "item" else "items"}",
                             style = MaterialTheme.typography.labelMedium,

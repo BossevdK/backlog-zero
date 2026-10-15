@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -121,29 +122,22 @@ fun StatusBadge(status: ItemStatus, modifier: Modifier = Modifier) {
 @Composable
 fun PosterCard(item: MediaItem, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.clickable(onClick = onClick)) {
-        Box(Modifier.fillMaxWidth().height(210.dp).clip(MaterialTheme.shapes.medium)) {
+        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(MaterialTheme.shapes.medium)) {
             ItemCover(item, Modifier.fillMaxSize())
-            Box(
-                Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(0.55f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.55f)),
-                ),
-            )
-            StatusBadge(
-                item.status,
-                Modifier.align(Alignment.BottomStart).padding(8.dp).background(Color.Black.copy(alpha = 0.35f), RoundedCornerShape(50)),
-            )
+            // Status als dunne gekleurde streep onderaan; de naam van de status staat onder de poster
+            Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(4.dp).background(item.status.color()))
             if (item.favorite) {
-                Icon(
-                    Icons.Filled.Favorite,
-                    contentDescription = "Favoriet",
-                    tint = Color(0xFFFF7A9A),
-                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(20.dp),
-                )
+                Box(
+                    Modifier.align(Alignment.TopEnd).padding(6.dp).size(24.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Filled.Favorite, contentDescription = "Favoriet", tint = Color(0xFFFF7A9A), modifier = Modifier.size(14.dp))
+                }
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Text(item.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        Text(item.type.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(6.dp))
+        Text(item.title, style = MaterialTheme.typography.labelLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(item.status.label, style = MaterialTheme.typography.labelSmall, color = item.status.color(), maxLines = 1)
     }
 }
 
@@ -271,5 +265,52 @@ fun <T> LoadGate(state: Load<T>, onRetry: () -> Unit, content: @Composable (T) -
         Load.Loading -> LoadingBox()
         is Load.Failed -> ErrorBox(state.message, onRetry)
         is Load.Ready -> content(state.value)
+    }
+}
+
+/** Rij van gelijke knoppen waarvan er één gekozen is; duidelijker en rustiger dan losse chips. */
+@Composable
+fun <T> Segmented(
+    options: List<T>,
+    selected: T,
+    label: (T) -> String,
+    color: (T) -> Color,
+    onSelect: (T) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.surfaceContainer).padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        options.forEach { option ->
+            val isSelected = option == selected
+            val accent = color(option)
+            Box(
+                Modifier.weight(1f).clip(MaterialTheme.shapes.small)
+                    .background(if (isSelected) accent.copy(alpha = 0.2f) else Color.Transparent)
+                    .clickable { onSelect(option) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    label(option),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isSelected) accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+/** Gegroepeerd blok met een kopje; houdt het itemscherm overzichtelijk. */
+@Composable
+fun InfoCard(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Column(
+        modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surfaceContainer).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        content()
     }
 }

@@ -18,6 +18,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.clip
+import com.backlogzero.app.ui.InfoCard
+import com.backlogzero.app.ui.Segmented
+import com.backlogzero.app.ui.theme.color
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.SearchOff
@@ -93,6 +101,7 @@ fun DetailScreen(id: String, onBack: () -> Unit, onEdit: (String) -> Unit) {
     val vm = appViewModel(key = "detail-$id") { DetailViewModel(it.library, id) }
     val state by vm.state.collectAsStateWithLifecycle()
     var confirmDelete by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -110,8 +119,21 @@ fun DetailScreen(id: String, onBack: () -> Unit, onEdit: (String) -> Unit) {
                                 tint = if (item.favorite) Color(0xFFFF7A9A) else MaterialTheme.colorScheme.onSurface,
                             )
                         }
-                        IconButton(onClick = { onEdit(item.id) }) { Icon(Icons.Filled.Edit, "Bewerken") }
-                        IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Filled.Delete, "Verwijderen") }
+                        Box {
+                            IconButton(onClick = { menuOpen = true }) { Icon(Icons.Filled.MoreVert, "Meer opties") }
+                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Bewerken") },
+                                    leadingIcon = { Icon(Icons.Filled.Edit, null) },
+                                    onClick = { menuOpen = false; onEdit(item.id) },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Verwijderen", color = MaterialTheme.colorScheme.error) },
+                                    leadingIcon = { Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                                    onClick = { menuOpen = false; confirmDelete = true },
+                                )
+                            }
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
@@ -147,53 +169,59 @@ fun DetailScreen(id: String, onBack: () -> Unit, onEdit: (String) -> Unit) {
 
 @Composable
 private fun DetailContent(item: MediaItem, vm: DetailViewModel) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
-        Box(Modifier.fillMaxWidth().height(260.dp)) {
-            ItemCover(item, Modifier.fillMaxSize())
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.4f to Color.Transparent, 1f to MaterialTheme.colorScheme.background)))
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        // Kop: poster naast de belangrijkste gegevens
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            ItemCover(item, Modifier.width(120.dp).height(180.dp).clip(MaterialTheme.shapes.medium))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(item.title, style = MaterialTheme.typography.headlineMedium)
+                Text(
+                    listOfNotNull(item.type.label, item.releaseYear?.toString()).joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (item.creator.isNotBlank()) {
+                    Text(item.creator, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (item.platform.isNotBlank()) {
+                    Text(item.platform, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (item.rating != null) {
+                    Spacer(Modifier.height(4.dp))
+                    RatingStars(item.rating, size = 18)
+                }
+            }
         }
-        Column(Modifier.padding(horizontal = 20.dp)) {
-            Text(item.title, style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.height(4.dp))
-            val meta = listOfNotNull(item.type.label, item.releaseYear?.toString(), item.creator.ifBlank { null }).joinToString(" · ")
-            Text(meta, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(12.dp))
-            StatusBadge(item.status)
 
-            Spacer(Modifier.height(24.dp))
-            Label("Status")
-            ChipRow(ItemStatus.entries, item.status, { it.label }, { it?.let(vm::setStatus) }, allLabel = null)
+        // Status: één duidelijke keuze, geen dubbele weergave
+        Segmented(ItemStatus.entries, item.status, { it.label }, { it.color() }, vm::setStatus)
 
-            Spacer(Modifier.height(16.dp))
-            Label("Prioriteit")
-            ChipRow(Priority.entries, item.priority, { it.label }, { it?.let(vm::setPriority) }, allLabel = null)
+        InfoCard("Jouw beoordeling") { RatingStars(item.rating, onChange = vm::setRating) }
 
-            Spacer(Modifier.height(24.dp))
-            Label("Jouw beoordeling")
-            RatingStars(item.rating, onChange = vm::setRating)
-
-            if (item.platform.isNotBlank()) {
-                Spacer(Modifier.height(20.dp))
-                Label(item.type.platformLabel)
-                Text(item.platform, style = MaterialTheme.typography.bodyLarge)
-            }
-            if (item.notes.isNotBlank()) {
-                Spacer(Modifier.height(20.dp))
-                Label("Notities")
-                Text(item.notes, style = MaterialTheme.typography.bodyLarge)
-            }
-
-            Spacer(Modifier.height(24.dp))
-            val dates = DateFormat.getDateInstance(DateFormat.MEDIUM)
-            Text(
-                buildString {
-                    append("Toegevoegd op ${dates.format(Date(item.createdAt))}")
-                    item.completedAt?.let { append(" · afgerond op ${dates.format(Date(it))}") }
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        val accent = MaterialTheme.colorScheme.primary
+        InfoCard("Prioriteit") {
+            Segmented(
+                Priority.entries, item.priority, { it.label },
+                { accent }, vm::setPriority,
             )
         }
+
+        if (item.notes.isNotBlank()) {
+            InfoCard("Notities") { Text(item.notes, style = MaterialTheme.typography.bodyLarge) }
+        }
+
+        val dates = DateFormat.getDateInstance(DateFormat.MEDIUM)
+        Text(
+            buildString {
+                append("Toegevoegd op ${dates.format(Date(item.createdAt))}")
+                item.completedAt?.let { append(" · afgerond op ${dates.format(Date(it))}") }
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
