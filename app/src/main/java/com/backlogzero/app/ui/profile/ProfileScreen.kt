@@ -44,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.backlogzero.app.data.AuthRepository
 import com.backlogzero.app.data.LibraryRepository
+import com.backlogzero.app.data.SteamLibrary
 import com.backlogzero.app.domain.User
 import com.backlogzero.app.ui.LoadGate
 import com.backlogzero.app.ui.appViewModel
@@ -53,7 +54,11 @@ import kotlinx.coroutines.launch
 
 data class ProfileData(val user: User?, val itemCount: Int)
 
-class ProfileViewModel(private val auth: AuthRepository, private val library: LibraryRepository) : ViewModel() {
+class ProfileViewModel(
+    private val auth: AuthRepository,
+    private val library: LibraryRepository,
+    private val steam: SteamLibrary,
+) : ViewModel() {
     private val data = loader { combine(auth.observeCurrentUser(), library.observeItems()) { u, i -> ProfileData(u, i.size) } }
     val state get() = data.state
     fun retry() = data.retry()
@@ -63,6 +68,7 @@ class ProfileViewModel(private val auth: AuthRepository, private val library: Li
     fun deleteAccount() {
         viewModelScope.launch {
             library.purgeCovers()
+            steam.clear() // ook de bewaarde Steam-sleutel en het Steam-ID
             auth.deleteAccount()
         }
     }
@@ -70,7 +76,7 @@ class ProfileViewModel(private val auth: AuthRepository, private val library: Li
 
 @Composable
 fun ProfileScreen() {
-    val vm = appViewModel { ProfileViewModel(it.auth, it.library) }
+    val vm = appViewModel { ProfileViewModel(it.auth, it.library, it.steam) }
     val state by vm.state.collectAsStateWithLifecycle()
     var confirmDelete by remember { mutableStateOf(false) }
     val context = LocalContext.current
