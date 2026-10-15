@@ -34,6 +34,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.backlogzero.app.BacklogZeroApp
 import com.backlogzero.app.domain.ItemStatus
+import com.backlogzero.app.domain.MediaType
 import com.backlogzero.app.ui.auth.AuthScreen
 import com.backlogzero.app.ui.detail.DetailScreen
 import com.backlogzero.app.ui.edit.EditScreen
@@ -51,7 +52,7 @@ private object Routes {
     const val PROFILE = "profile"
     const val DETAIL = "detail/{id}"
     const val EDIT = "edit?id={id}"
-    const val PICK = "pick"
+    const val PICK = "pick?type={type}"
 }
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
@@ -118,7 +119,7 @@ private fun MainNav() {
                 HomeScreen(
                     onOpenItem = { nav.navigate("detail/$it") },
                     onAdd = { nav.navigate("edit") },
-                    onPick = { nav.navigate(Routes.PICK) },
+                    onPick = { type -> nav.navigate(if (type == null) "pick" else "pick?type=${type.key}") },
                     onOpenLibrary = { status ->
                         nav.navigate("library?status=${status.key}") {
                             popUpTo(Routes.HOME) { saveState = true }
@@ -165,9 +166,11 @@ private fun MainNav() {
             }
             composable(
                 Routes.PICK,
+                arguments = listOf(navArgument("type") { type = NavType.StringType; nullable = true; defaultValue = null }),
                 enterTransition = enter(), exitTransition = exit(), popEnterTransition = enter(), popExitTransition = exit(),
-            ) {
+            ) { entry ->
                 PickScreen(
+                    initialType = entry.arguments?.getString("type")?.let(MediaType::fromKey),
                     onBack = { nav.popBackStack() },
                     onOpenItem = { nav.navigate("detail/$it") { popUpTo(Routes.PICK) { inclusive = true } } },
                 )

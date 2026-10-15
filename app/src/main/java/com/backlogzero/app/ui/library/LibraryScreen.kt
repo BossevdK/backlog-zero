@@ -25,6 +25,16 @@ import androidx.compose.material.icons.filled.FilterAltOff
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -84,6 +94,7 @@ fun LibraryScreen(initialStatus: ItemStatus?, onOpenItem: (String) -> Unit, onAd
     val vm = appViewModel(key = "library-${initialStatus?.key}") { LibraryViewModel(it.library, initialStatus) }
     val state by vm.state.collectAsStateWithLifecycle()
     val filter by vm.filter.collectAsStateWithLifecycle()
+    var showFilters by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -107,27 +118,18 @@ fun LibraryScreen(initialStatus: ItemStatus?, onOpenItem: (String) -> Unit, onAd
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
         )
         Spacer(Modifier.height(8.dp))
-        ChipRow(
-            MediaType.entries, filter.type, { it.plural }, { t -> vm.update { it.copy(type = t) } },
-            modifier = Modifier.padding(horizontal = 20.dp),
-        )
-        ChipRow(
-            ItemStatus.entries, filter.status, { it.label }, { s -> vm.update { it.copy(status = s) } },
-            modifier = Modifier.padding(horizontal = 20.dp),
-        )
-        ChipRow(
-            Priority.entries, filter.priority, { "Prio: ${it.label}" }, { p -> vm.update { it.copy(priority = p) } },
-            allLabel = null,
-            modifier = Modifier.padding(horizontal = 20.dp),
-            leading = {
-                FilterChip(
-                    selected = filter.favoritesOnly,
-                    onClick = { vm.update { it.copy(favoritesOnly = !it.favoritesOnly) } },
-                    label = { Text("Favorieten") },
-                    leadingIcon = { Icon(Icons.Filled.Favorite, null, modifier = Modifier.padding(0.dp)) },
-                )
-            },
-        )
+        val extraActive = listOf(filter.status, filter.priority).count { it != null } + if (filter.favoritesOnly) 1 else 0
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            ChipRow(
+                MediaType.entries, filter.type, { it.plural }, { t -> vm.update { it.copy(type = t) } },
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = { showFilters = true }) {
+                BadgedBox(badge = { if (extraActive > 0) Badge { Text(extraActive.toString()) } }) {
+                    Icon(Icons.Filled.Tune, contentDescription = "Meer filters")
+                }
+            }
+        }
         Spacer(Modifier.height(8.dp))
 
         LoadGate(state, vm::retry) { data ->
@@ -161,6 +163,28 @@ fun LibraryScreen(initialStatus: ItemStatus?, onOpenItem: (String) -> Unit, onAd
                     }
                     items(data.shown, key = { it.id }) { item -> PosterCard(item, onClick = { onOpenItem(item.id) }) }
                 }
+            }
+        }
+    if (showFilters) FilterSheet(filter, vm::update, vm::clear) { showFilters = false }
+    }
+}
+
+@Composable
+private fun FilterSheet(filter: LibraryFilter, update: ((LibraryFilter) -> LibraryFilter) -> Unit, onClear: () -> Unit, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text("Filters", style = MaterialTheme.typography.titleLarge)
+            Text("Status", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            ChipRow(ItemStatus.entries, filter.status, { it.label }, { s -> update { it.copy(status = s) } })
+            Text("Prioriteit", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            ChipRow(Priority.entries, filter.priority, { it.label }, { p -> update { it.copy(priority = p) } })
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Alleen favorieten", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                Switch(checked = filter.favoritesOnly, onCheckedChange = { f -> update { it.copy(favoritesOnly = f) } })
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(onClick = onClear, modifier = Modifier.weight(1f)) { Text("Alles wissen") }
+                Button(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("Klaar") }
             }
         }
     }

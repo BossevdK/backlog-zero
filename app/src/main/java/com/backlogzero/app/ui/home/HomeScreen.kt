@@ -41,6 +41,7 @@ import com.backlogzero.app.data.AuthRepository
 import com.backlogzero.app.data.LibraryRepository
 import com.backlogzero.app.domain.ItemStatus
 import com.backlogzero.app.domain.MediaItem
+import com.backlogzero.app.domain.MediaType
 import com.backlogzero.app.domain.Priority
 import com.backlogzero.app.domain.User
 import com.backlogzero.app.ui.EmptyState
@@ -74,7 +75,7 @@ class HomeViewModel(auth: AuthRepository, library: LibraryRepository) : ViewMode
 fun HomeScreen(
     onOpenItem: (String) -> Unit,
     onAdd: () -> Unit,
-    onPick: () -> Unit,
+    onPick: (MediaType?) -> Unit,
     onOpenLibrary: (ItemStatus) -> Unit,
 ) {
     val vm = appViewModel { HomeViewModel(it.auth, it.library) }
@@ -143,22 +144,38 @@ private fun StatTile(status: ItemStatus, count: Int, modifier: Modifier, onClick
 }
 
 @Composable
-private fun PickCard(modifier: Modifier, onPick: () -> Unit) {
-    Row(
+private fun PickCard(modifier: Modifier, onPick: (MediaType?) -> Unit) {
+    Column(
         modifier.fillMaxWidth().clip(MaterialTheme.shapes.large)
             .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.secondaryContainer)))
-            .clickable(onClick = onPick).padding(20.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(18.dp),
     ) {
-        Column(Modifier.weight(1f)) {
-            Text("Pick for me", style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(2.dp))
-            Text("Weet je niet wat je moet doen? Laat de app kiezen.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Pick for me", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(2.dp))
+                Text("Laat de app iets voor je kiezen.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            }
+            Box(Modifier.size(44.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.AutoAwesome, null, tint = MaterialTheme.colorScheme.onPrimary)
+            }
         }
-        Box(Modifier.size(48.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
-            Icon(Icons.Filled.AutoAwesome, null, tint = MaterialTheme.colorScheme.onPrimary)
+        Spacer(Modifier.height(14.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PickPill("Alles", Modifier.weight(1f)) { onPick(null) }
+            MediaType.entries.forEach { type -> PickPill(type.plural, Modifier.weight(1f)) { onPick(type) } }
         }
     }
+}
+
+
+@Composable
+private fun PickPill(label: String, modifier: Modifier, onClick: () -> Unit) {
+    Box(
+        modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.background.copy(alpha = 0.35f))
+            .clickable(onClick = onClick).padding(vertical = 9.dp),
+        contentAlignment = Alignment.Center,
+    ) { Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1) }
 }
 
 @Composable

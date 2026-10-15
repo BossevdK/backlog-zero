@@ -4,7 +4,7 @@ Bijgewerkt op 2026-10-14. Wat hier staat is nog niet gebouwd.
 
 ## Gewenste toevoegingen
 
-1. **Pick for me per categorie.** De willekeurige keuze (`Recommender` / `PickScreen`) moet ook kunnen voor alleen films, alleen series, alleen games of alleen boeken, naast "alles".
+1. ~~**Pick for me per categorie.**~~ Klaar (nog niet op een toestel gecontroleerd): keuze Alles/Games/Films/Series/Boeken op het Pick-scherm, en snelknoppen per categorie op de Pick-kaart van het dashboard (`ui/pick/PickScreen.kt`, `ui/home/HomeScreen.kt`). De bibliotheek heeft nu één rij categorieën plus een Filters-paneel voor status, prioriteit en favorieten (`ui/library/LibraryScreen.kt`).
 2. **Homepagina beter sorteren.** Nu nog niet vastgelegd hoe; bedenk eerst een indeling (bijvoorbeeld "Bezig", "Volgende uit je backlog", "Recent toegevoegd" en per categorie). Bestand: `ui/home/HomeScreen.kt`.
 3. **Steam-games inladen.** Importeer je Steam-bibliotheek. Games die je al hebt krijgen een markering in de online zoekresultaten en komen **bovenaan** de resultaten te staan (bevestigd door de gebruiker). Ze hoeven niet automatisch in je backlog.
    - Steam Web API vraagt een eigen API-sleutel en je Steam-ID (64-bit); het profiel moet "game details" openbaar hebben.

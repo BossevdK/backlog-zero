@@ -21,7 +21,11 @@ import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Switch
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.backlogzero.app.ui.icon
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -66,8 +70,9 @@ data class PickState(val criteria: PickCriteria, val picked: MediaItem?, val has
 class PickViewModel(
     private val library: LibraryRepository,
     private val recommender: Recommender,
+    initialType: MediaType?,
 ) : ViewModel() {
-    private val criteria = MutableStateFlow(PickCriteria())
+    private val criteria = MutableStateFlow(PickCriteria(type = initialType))
     private val pickedId = MutableStateFlow<String?>(null)
 
     private val data = loader {
@@ -110,8 +115,8 @@ class PickViewModel(
 }
 
 @Composable
-fun PickScreen(onBack: () -> Unit, onOpenItem: (String) -> Unit) {
-    val vm = appViewModel { PickViewModel(it.library, it.recommender) }
+fun PickScreen(initialType: MediaType?, onBack: () -> Unit, onOpenItem: (String) -> Unit) {
+    val vm = appViewModel { PickViewModel(it.library, it.recommender, initialType) }
     val state by vm.state.collectAsStateWithLifecycle()
 
     Scaffold(
@@ -126,20 +131,27 @@ fun PickScreen(onBack: () -> Unit, onOpenItem: (String) -> Unit) {
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             LoadGate(state, vm::retry) { pick ->
-                ChipRow(
-                    MediaType.entries, pick.criteria.type, { it.plural }, vm::setType,
+                Text(
+                    "Waar heb je zin in?",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 20.dp),
-                    leading = null,
                 )
-                Spacer(Modifier.height(4.dp))
-                Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    FilterChip(
-                        selected = pick.criteria.includeInProgress,
-                        onClick = { vm.setIncludeInProgress(!pick.criteria.includeInProgress) },
-                        label = { Text("Ook items waar ik mee bezig ben") },
+                Spacer(Modifier.height(8.dp))
+                CategoryPicker(pick.criteria.type, vm::setType, Modifier.padding(horizontal = 20.dp))
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Ook items waar ik al mee bezig ben",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
                     )
+                    Switch(checked = pick.criteria.includeInProgress, onCheckedChange = vm::setIncludeInProgress)
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
 
                 val picked = pick.picked
                 if (picked == null) {
@@ -197,5 +209,30 @@ private fun PickResult(item: MediaItem, vm: PickViewModel, onOpenItem: (String) 
             Spacer(Modifier.width(8.dp))
             Text("Kies iets anders")
         }
+    }
+}
+
+/** Vijf grote keuzes naast elkaar: alles of één categorie. */
+@Composable
+fun CategoryPicker(selected: MediaType?, onSelect: (MediaType?) -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        CategoryTile("Alles", Icons.Filled.AutoAwesome, selected == null, { onSelect(null) }, Modifier.weight(1f))
+        MediaType.entries.forEach { type ->
+            CategoryTile(type.plural, type.icon(), selected == type, { onSelect(type) }, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun CategoryTile(label: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    val bg = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
+    val fg = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    Column(
+        modifier.clip(MaterialTheme.shapes.medium).background(bg).clickable(onClick = onClick).padding(vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.height(4.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = fg, maxLines = 1)
     }
 }
