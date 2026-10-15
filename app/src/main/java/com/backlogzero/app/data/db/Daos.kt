@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -40,4 +41,25 @@ interface ItemDao {
 
     @Query("DELETE FROM items WHERE userId = :userId AND id = :id")
     suspend fun delete(userId: String, id: String)
+}
+
+@Dao
+interface SteamDao {
+    @Query("SELECT normalizedName FROM steam_games WHERE userId = :userId")
+    suspend fun normalizedNames(userId: String): List<String>
+
+    @Query("SELECT COUNT(*) FROM steam_games WHERE userId = :userId")
+    fun observeCount(userId: String): Flow<Int>
+
+    @Query("DELETE FROM steam_games WHERE userId = :userId")
+    suspend fun clear(userId: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(games: List<SteamGameEntity>)
+
+    @Transaction
+    suspend fun replaceAll(userId: String, games: List<SteamGameEntity>) {
+        clear(userId)
+        insertAll(games)
+    }
 }

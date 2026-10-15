@@ -1,24 +1,26 @@
 # TODO / ideeën
 
-Bijgewerkt op 2026-10-14. Wat hier staat is nog niet gebouwd.
+Bijgewerkt op 2026-10-15.
 
-## Gewenste toevoegingen
+## Nog te bouwen
 
-1. ~~**Pick for me per categorie.**~~ Klaar (nog niet op een toestel gecontroleerd): keuze Alles/Games/Films/Series/Boeken op het Pick-scherm, en snelknoppen per categorie op de Pick-kaart van het dashboard (`ui/pick/PickScreen.kt`, `ui/home/HomeScreen.kt`). De bibliotheek heeft nu één rij categorieën plus een Filters-paneel voor status, prioriteit en favorieten (`ui/library/LibraryScreen.kt`).
-2. **Homepagina beter sorteren.** Nu nog niet vastgelegd hoe; bedenk eerst een indeling (bijvoorbeeld "Bezig", "Volgende uit je backlog", "Recent toegevoegd" en per categorie). Bestand: `ui/home/HomeScreen.kt`.
-3. **Steam-games inladen.** Importeer je Steam-bibliotheek. Games die je al hebt krijgen een markering in de online zoekresultaten en komen **bovenaan** de resultaten te staan (bevestigd door de gebruiker). Ze hoeven niet automatisch in je backlog.
-   - Steam Web API vraagt een eigen API-sleutel en je Steam-ID (64-bit); het profiel moet "game details" openbaar hebben.
-   - Past naast `data/MetadataSearch.kt` (RAWG-zoeken); koppel op titel (genormaliseerd) of Steam app-id. Sortering van de resultaten gebeurt na het zoeken.
-4. **Series: seizoen en aflevering bijhouden.** Bij het type Serie kun je aangeven bij welk seizoen en welke aflevering je bent. Vraagt nieuwe velden op `MediaItem` en `UserEntity`/item-tabel, dus een Room-migratie (schema's staan in `app/schemas/`, versie in `AppDatabase` verhogen) en aanpassingen in `EditScreen`/`DetailScreen`.
-5. **Zoekbalk blijft vast bij scrollen.** Bij online zoeken scrolt de zoekbalk nu mee met de rest van het formulier; hij moet bovenaan blijven staan terwijl je door de resultaten scrolt (bijvoorbeeld zoekveld buiten de scrollende kolom in `EditScreen.kt`, of een aparte zoekweergave).
-6. **Meer bronnen voor games en series.** Kijken naar andere plekken om meer games en series vandaan te halen, omdat TMDB en RAWG niet alles vinden. Nog uit te zoeken; denk aan bijvoorbeeld IGDB, TheTVDB of Trakt. Past achter `MetadataSearch` in `data/MetadataSearch.kt`; resultaten van meerdere bronnen samenvoegen en dubbelen weghalen.
+1. **Series: seizoen en aflevering bijhouden.** Bij het type Serie kun je aangeven bij welk seizoen en welke aflevering je bent. Vraagt nieuwe velden op `MediaItem` en de item-tabel, dus een Room-migratie (schema's staan in `app/schemas/`, versie in `AppDatabase` verhogen, voorbeeld: `MIGRATION_1_2`) en aanpassingen in `EditScreen`/`DetailScreen`.
+2. **Meer bronnen voor games en series.** Kijken naar andere plekken om meer games en series vandaan te halen, omdat TMDB en RAWG niet alles vinden. Nog uit te zoeken; denk aan bijvoorbeeld IGDB, TheTVDB of Trakt. Past achter `MetadataSearch` in `data/MetadataSearch.kt`; resultaten van meerdere bronnen samenvoegen en dubbelen weghalen.
 
-## Nog open van eerder
+## Klaar, nog te controleren op een toestel
 
-- Opgelost in code, nog niet op een toestel gecontroleerd: bij online zoeken zat het toetsenbord voor de resultaten. Ze worden nu in beeld gescrold (`SearchSection` in `EditScreen.kt`).
-- De TMDB-vermelding ("This product uses the TMDB API but is not endorsed or certified by TMDB") staat nog niet in de app (bijvoorbeeld in het profielscherm). Dat is een voorwaarde van TMDB.
-- Online zoeken voor films, series en games is op een toestel nog niet getest (release 1.3 bevat de sleutels).
-- Of de `LocalLifecycleOwner`-crash weg is (opgelost met Compose BOM 2024.09.03) is op een toestel nog niet bevestigd.
+- **Pick for me per categorie** (Alles/Games/Films/Series/Boeken) op het Pick-scherm en als snelknoppen op het dashboard.
+- **Opgeruimde bibliotheek en itemscherm**: 3 kolommen, filterknop in de zoekbalk, poster-kop met statusbalk en kaarten.
+- **Dashboard**: categoriefilter bovenaan; rijen Bezig, Volgende uit je backlog (prioriteit, dan wachttijd), Recent toegevoegd en Recent afgerond (`domain/HomeRows.kt`).
+- **Steam-bibliotheek** (profiel > Steam-bibliotheek): haalt je games op met je eigen Steam-ID/profielnaam en je eigen gratis API-sleutel (steamcommunity.com/dev/apikey; 'Gamedetails' moet openbaar staan). Bij het zoeken naar games staan games die je al hebt bovenaan met "In je Steam-bibliotheek". Ze komen niet vanzelf in je backlog. Opgeslagen in Room (versie 2, `steam_games`); sleutel en ID alleen in de privé-opslag van de app. Code: `data/SteamLibrary.kt`, `data/OwnedGames.kt`, `ui/profile/SteamSection.kt`.
+- **Zoekbalk en categorie blijven vast bovenaan** bij het toevoegen; resultaten en formulier scrollen eronder (`ui/edit/EditScreen.kt`).
+- **Bronvermelding** (TMDB-verplichte tekst, RAWG, Open Library) onderaan het profielscherm.
+- Migratie 1 naar 2 is vergeleken met het door Room gegenereerde schema, maar nog niet op een toestel met bestaande gegevens geprobeerd.
+
+## Bevestigd door de gebruiker
+
+- De `LocalLifecycleOwner`-crash is weg.
+- Online zoeken werkt en de resultaten staan boven het toetsenbord.
 
 ## Werken op een andere laptop
 

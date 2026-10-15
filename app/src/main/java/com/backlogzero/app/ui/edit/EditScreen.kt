@@ -8,8 +8,6 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,6 +62,8 @@ import com.backlogzero.app.data.CoverStorage
 import com.backlogzero.app.data.LibraryRepository
 import com.backlogzero.app.data.MetadataSearch
 import com.backlogzero.app.data.SearchResult
+import com.backlogzero.app.data.SteamLibrary
+import com.backlogzero.app.data.markOwned
 import com.backlogzero.app.domain.ItemStatus
 import com.backlogzero.app.domain.MediaItem
 import com.backlogzero.app.domain.MediaType
@@ -87,6 +87,7 @@ class EditViewModel(
     private val library: LibraryRepository,
     private val covers: CoverStorage,
     private val metadata: MetadataSearch,
+    private val steam: SteamLibrary,
     private val itemId: String?,
 ) : ViewModel() {
     var loaded by mutableStateOf(itemId == null)
@@ -179,7 +180,9 @@ class EditViewModel(
             delay(400) // wachten tot je uitgetypt bent
             searching = true
             try {
-                results = metadata.search(type, searchQuery)
+                val found = metadata.search(type, searchQuery)
+                // Games die je op Steam hebt, komen bovenaan en krijgen een markering.
+                results = if (type == MediaType.GAME) found.markOwned(runCatching { steam.ownedNormalizedTitles() }.getOrDefault(emptySet())) else found
             } catch (e: IOException) {
                 results = emptyList()
                 searchError = "Zoeken lukt nu niet. Controleer je verbinding."
@@ -271,7 +274,7 @@ class EditViewModel(
 
 @Composable
 fun EditScreen(itemId: String?, onBack: () -> Unit, onSaved: (String) -> Unit) {
-    val vm = appViewModel(key = "edit-${itemId ?: "new"}") { EditViewModel(it.library, it.covers, it.metadata, itemId) }
+    val vm = appViewModel(key = "edit-${itemId ?: "new"}") { EditViewModel(it.library, it.covers, it.metadata, it.steam, itemId) }
     val context = LocalContext.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { vm.pickCover(it) }
 
@@ -292,10 +295,21 @@ fun EditScreen(itemId: String?, onBack: () -> Unit, onSaved: (String) -> Unit) {
             when {
                 vm.notFound -> EmptyState(Icons.Filled.SearchOff, "Item niet gevonden", "Dit item bestaat niet meer.", actionLabel = "Terug", onAction = onBack)
                 !vm.loaded -> LoadingBox()
-                else -> Column(
-                    Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp),
+                else -> Column(Modifier.fillMaxSize().imePadding()) {
+                    // Categorie en zoekbalk blijven bovenaan staan; alleen de resultaten en het formulier scrollen.
+                    if (vm.isNew) {
+                        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            ChipRow(MediaType.entries, vm.type, { it.label }, { t -> t?.let { vm.selectType(it) } }, allLabel = null)
+                            SearchField(vm)
+                        }
+                    }
+                    val scroll = rememberScrollState()
+                    LaunchedEffect(vm.results) { if (vm.results.isNotEmpty()) scroll.animateScrollTo(0) }
+                  Column(
+                    Modifier.weight(1f).verticalScroll(scroll).padding(horizontal = 20.dp).padding(bottom = 32.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
+                  ) {
+                    if (vm.isNew) SearchResults(vm)
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Bottom) {
                         val model: Any? = vm.pendingCover ?: vm.pendingCoverUrl ?: vm.existingCover?.let { CoverStorage.file(context, it) }
                         Cover(
@@ -314,11 +328,11 @@ fun EditScreen(itemId: String?, onBack: () -> Unit, onSaved: (String) -> Unit) {
                         }
                     }
 
-                    Field("Categorie") {
-                        ChipRow(MediaType.entries, vm.type, { it.label }, { t -> t?.let { vm.selectType(it) } }, allLabel = null)
+                    if (!vm.isNew) {
+                        Field("Categorie") {
+                            ChipRow(MediaType.entries, vm.type, { it.label }, { t -> t?.let { vm.selectType(it) } }, allLabel = null)
+                        }
                     }
-
-                    if (vm.isNew) SearchSection(vm)
 
                     OutlinedTextField(
                         value = vm.title, onValueChange = { vm.title = it }, label = { Text("Titel") },
@@ -369,6 +383,7 @@ fun EditScreen(itemId: String?, onBack: () -> Unit, onSaved: (String) -> Unit) {
                         if (vm.saving) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                         else Text(if (vm.isNew) "Toevoegen" else "Opslaan")
                     }
+                  }
                 }
             }
         }
@@ -376,16 +391,7 @@ fun EditScreen(itemId: String?, onBack: () -> Unit, onSaved: (String) -> Unit) {
 }
 
 @Composable
-private fun SearchSection(vm: EditViewModel) {
-    // Het toetsenbord neemt de onderste helft van het scherm in; scroll de zoekresultaten dus in beeld zodra ze er zijn.
-    val requester = remember { BringIntoViewRequester() }
-    LaunchedEffect(vm.results) {
-        if (vm.results.isNotEmpty()) {
-            delay(100) // wachten tot de lijst getekend is
-            requester.bringIntoView()
-        }
-    }
-    Column(Modifier.bringIntoViewRequester(requester), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+private fun SearchField(vm: EditViewModel) {
     OutlinedTextField(
         value = vm.searchQuery, onValueChange = vm::onSearchQuery,
         label = { Text("Zoek ${vm.type.label.lowercase()} online") },
@@ -405,22 +411,31 @@ private fun SearchSection(vm: EditViewModel) {
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )
-    vm.results.forEach { r ->
-        Row(
-            Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable { vm.pickResult(r) }.padding(vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Cover(r.title, vm.type, r.coverUrl, Modifier.width(40.dp).height(60.dp).clip(MaterialTheme.shapes.small))
-            Column(Modifier.weight(1f)) {
-                Text(r.title, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                val sub = listOfNotNull(r.creator.ifEmpty { null }, r.year?.toString(), r.platform.ifEmpty { null }).joinToString(" · ")
-                if (sub.isNotEmpty()) {
-                    Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+}
+
+@Composable
+private fun SearchResults(vm: EditViewModel) {
+    if (vm.results.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        vm.results.forEach { r ->
+            Row(
+                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable { vm.pickResult(r) }.padding(vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Cover(r.title, vm.type, r.coverUrl, Modifier.width(40.dp).height(60.dp).clip(MaterialTheme.shapes.small))
+                Column(Modifier.weight(1f)) {
+                    Text(r.title, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    val sub = listOfNotNull(r.creator.ifEmpty { null }, r.year?.toString(), r.platform.ifEmpty { null }).joinToString(" · ")
+                    if (sub.isNotEmpty()) {
+                        Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    if (r.owned) {
+                        Text("In je Steam-bibliotheek", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                    }
                 }
             }
         }
-    }
     }
 }
 

@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -99,6 +100,8 @@ fun ProfileScreen() {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
+                SteamSection()
+
                 UpdateSection()
 
                 OutlinedButton(onClick = vm::logout, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Uitloggen") }
@@ -106,6 +109,13 @@ fun ProfileScreen() {
                     Text("Account en alle gegevens verwijderen", color = MaterialTheme.colorScheme.error)
                 }
                 Text("Backlog Zero $version", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.align(Alignment.CenterHorizontally))
+                Text(
+                    "Gegevens van TMDB, RAWG en Open Library.\nThis product uses the TMDB API but is not endorsed or certified by TMDB.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
     }

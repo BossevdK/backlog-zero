@@ -90,3 +90,24 @@ fun MediaItem.toEntity(userId: String) = ItemEntity(
     updatedAt = updatedAt,
     completedAt = completedAt,
 )
+
+/** Een game uit de Steam-bibliotheek van de gebruiker; alleen gebruikt om zoekresultaten te markeren. */
+@Entity(
+    tableName = "steam_games",
+    primaryKeys = ["userId", "appId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = UserEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["userId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("userId")],
+)
+data class SteamGameEntity(
+    val userId: String,
+    val appId: Long,
+    val name: String,
+    val normalizedName: String,
+)

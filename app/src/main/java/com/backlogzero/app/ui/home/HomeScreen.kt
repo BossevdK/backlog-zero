@@ -29,6 +29,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import com.backlogzero.app.domain.HomeRows
+import com.backlogzero.app.ui.ChipRow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,17 +59,7 @@ import com.backlogzero.app.ui.loader
 import com.backlogzero.app.ui.theme.color
 import kotlinx.coroutines.flow.combine
 
-data class HomeData(val user: User?, val items: List<MediaItem>) {
-    val inProgress get() = items.filter { it.status == ItemStatus.IN_PROGRESS }
-    val upNext
-        get() = items.filter { it.status == ItemStatus.BACKLOG || it.status == ItemStatus.PAUSED }
-            .sortedWith(compareByDescending<MediaItem> { it.priority.level }.thenBy { it.createdAt })
-            .take(10)
-    val recentlyCompleted
-        get() = items.filter { it.status == ItemStatus.COMPLETED }
-            .sortedByDescending { it.completedAt ?: it.updatedAt }.take(10)
-    fun count(status: ItemStatus) = items.count { it.status == status }
-}
+data class HomeData(val user: User?, val items: List<MediaItem>)
 
 class HomeViewModel(auth: AuthRepository, library: LibraryRepository) : ViewModel() {
     private val data = loader { combine(auth.observeCurrentUser(), library.observeItems()) { u, i -> HomeData(u, i) } }
@@ -81,15 +77,20 @@ fun HomeScreen(
     val vm = appViewModel { HomeViewModel(it.auth, it.library) }
     val state by vm.state.collectAsStateWithLifecycle()
 
+    var typeKey by rememberSaveable { mutableStateOf<String?>(null) }
+    val type = typeKey?.let(MediaType::fromKey)
+
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         LoadGate(state, vm::retry) { data ->
+            val rows = remember(data.items, type) { HomeRows.of(data.items, type) }
             LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                 item {
                     Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Hoi ${data.user?.name?.substringBefore(' ').orEmpty()}", style = MaterialTheme.typography.headlineMedium)
                             Text(
-                                if (data.items.isEmpty()) "Je bibliotheek is nog leeg" else "${data.count(ItemStatus.BACKLOG) + data.count(ItemStatus.PAUSED)} items wachten op jou",
+                                if (data.items.isEmpty()) "Je bibliotheek is nog leeg"
+                                else "${(rows.counts[ItemStatus.BACKLOG] ?: 0) + (rows.counts[ItemStatus.PAUSED] ?: 0)} ${type?.plural?.lowercase() ?: "items"} wachten op jou",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -110,22 +111,34 @@ fun HomeScreen(
                     }
                 } else {
                     item {
+                        ChipRow(
+                            MediaType.entries, type, { it.plural }, { t -> typeKey = t?.key },
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                        )
+                    }
+                    item {
                         Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             listOf(ItemStatus.BACKLOG, ItemStatus.IN_PROGRESS, ItemStatus.COMPLETED).forEach { s ->
-                                StatTile(s, data.count(s), Modifier.weight(1f)) { onOpenLibrary(s) }
+                                StatTile(s, rows.counts[s] ?: 0, Modifier.weight(1f)) { onOpenLibrary(s) }
                             }
                         }
                     }
                     item { PickCard(Modifier.padding(horizontal = 20.dp), onPick) }
 
-                    if (data.inProgress.isNotEmpty()) {
-                        item { ItemRow("Bezig", data.inProgress, onOpenItem) }
-                    }
-                    if (data.upNext.isNotEmpty()) {
-                        item { ItemRow("Volgende in je lijst", data.upNext, onOpenItem) }
-                    }
-                    if (data.recentlyCompleted.isNotEmpty()) {
-                        item { ItemRow("Recent afgerond", data.recentlyCompleted, onOpenItem) }
+                    if (rows.inProgress.isNotEmpty()) item { ItemRow("Bezig", rows.inProgress, onOpenItem) }
+                    if (rows.upNext.isNotEmpty()) item { ItemRow("Volgende uit je backlog", rows.upNext, onOpenItem) }
+                    if (rows.recentlyAdded.isNotEmpty()) item { ItemRow("Recent toegevoegd", rows.recentlyAdded, onOpenItem) }
+                    if (rows.recentlyCompleted.isNotEmpty()) item { ItemRow("Recent afgerond", rows.recentlyCompleted, onOpenItem) }
+                    if (rows.total == 0) {
+                        item {
+                            EmptyState(
+                                icon = Icons.Filled.LibraryAdd,
+                                title = "Niets in deze categorie",
+                                text = "Voeg iets toe, of kies een andere categorie.",
+                                actionLabel = "Item toevoegen",
+                                onAction = onAdd,
+                            )
+                        }
                     }
                 }
             }

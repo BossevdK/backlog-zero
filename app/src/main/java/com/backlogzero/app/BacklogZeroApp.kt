@@ -13,18 +13,22 @@ import com.backlogzero.app.data.MetadataSearch
 import com.backlogzero.app.data.OnlineMetadataSearch
 import com.backlogzero.app.data.RoomLibraryRepository
 import com.backlogzero.app.data.SessionStore
+import com.backlogzero.app.data.SteamLibrary
 import com.backlogzero.app.data.db.AppDatabase
 import com.backlogzero.app.domain.Recommender
 import com.backlogzero.app.domain.WeightedRandomRecommender
 
 /** Handmatige afhankelijkheden: één plek om implementaties later te verwisselen. */
 class AppContainer(context: Context) {
-    private val database = Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME).build()
+    private val database = Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
+        .addMigrations(AppDatabase.MIGRATION_1_2)
+        .build()
 
     val covers = CoverStorage(context)
     val auth: AuthRepository = LocalAuthRepository(database.userDao(), SessionStore(context))
     val library: LibraryRepository = RoomLibraryRepository(database.itemDao(), auth, covers)
     val metadata: MetadataSearch = OnlineMetadataSearch()
+    val steam = SteamLibrary(context, database.steamDao(), auth)
     val recommender: Recommender = WeightedRandomRecommender()
 }
 

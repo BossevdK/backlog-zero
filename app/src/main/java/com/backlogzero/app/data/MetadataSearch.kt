@@ -19,6 +19,8 @@ data class SearchResult(
     val platform: String = "",
     val coverUrl: String? = null,
     val detailId: String? = null,
+    /** Staat deze game al in je Steam-bibliotheek? Wordt pas na het zoeken ingevuld. */
+    val owned: Boolean = false,
 )
 
 /** Zoekt titels online, zodat titel, maker, jaar en omslag niet met de hand ingevuld hoeven te worden. */
